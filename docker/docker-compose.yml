@@ -3,6 +3,8 @@ version: '3.7'
 networks:
   backend:
     driver: bridge
+  keycloack:
+    driver: bridge
 
 services:
   mariadb:
@@ -22,3 +24,43 @@ services:
     ports:
       - ${MARIADB_PORT}:3306
 
+  keycloack:
+    tty: true
+    build:
+      context: ./keycloack
+      dockerfile: Dockerfile
+    environment:
+      - DB_VENDOR=MYSQL
+      - DB_ADDR=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${MYSQL_DATABASE}
+      - DB_USER=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+      - KEYCLOAK_USER=${KEYCLOAK_USER}
+      - KEYCLOAK_PASSWORD=${KEYCLOAK_PASSWORD}
+      - JDBC_PARAMS=${KEYCLOAK_JDBC_PARAMS}
+    command:
+      - "-Dkeycloak.import=/opt/jboss/keycloak/default-realm.json"
+    volumes:
+      - ./keycloack/default-realm.json:/opt/jboss/keycloak/default-realm.json
+    networks:
+      - keycloack
+    ports:
+      - ${KEYCLOAK_PORT}:8080
+    depends_on:
+      - mysql
+
+  mysql:
+    tty: true
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - .data/mysql:/var/lib/mysql
+    networks:
+      - keycloack
